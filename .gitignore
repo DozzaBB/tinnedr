@@ -1,0 +1,9 @@
+.idea/
+.vscode/
+*.map
+.DS_Store
+.sourcemaps
+dist/
+/yarn.lock
+/node_modules
+/android
