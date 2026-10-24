@@ -22,8 +22,7 @@
         interface="popover"
         @ionChange="handleDomainChange($event.detail.value as Domain)"
       >
-        <ion-select-option value="fish">Fish</ion-select-option>
-        <ion-select-option value="hotpot">Hotpot</ion-select-option>
+      <ion-select-option v-for="domain in DomainList" :value="domain">{{ domain }}</ion-select-option>
       </ion-select>
     </ion-item>
     <ion-item>
@@ -129,7 +128,7 @@ import {
 import db from '@/simpleORM';
 import { ref, onMounted, onActivated, useTemplateRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { Domain, Review } from '@/types';
+import { Domain, DomainList, Review } from '@/types';
 import { loadPicture } from '@/utils/usePhotoGallery';
 // @ts-ignore
 import StarRating from 'vue-star-rating';

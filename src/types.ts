@@ -9,4 +9,5 @@ export interface Review {
     domain: Domain
 }
 
-export type Domain = 'fish' | 'hotpot'
+export const DomainList = ["fish","hotpot"] as const;
+export type Domain = typeof DomainList[number]

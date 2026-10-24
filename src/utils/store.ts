@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import type { Domain } from '@/types';
+import { DomainList } from '@/types';
 import db from '@/simpleORM';
 
 export const useDomain = defineStore('domain', {
@@ -12,7 +13,7 @@ export const useDomain = defineStore('domain', {
         const saved = await db.getCollection('domain');
         const savedDomain = Array.isArray(saved) ? saved[0]?.domain : saved?.domain;
 
-        if (savedDomain === 'fish' || savedDomain === 'hotpot') {
+        if (DomainList.includes(savedDomain)) {
           this.domain = savedDomain;
         }
       } catch (error) {
