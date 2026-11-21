@@ -11,7 +11,7 @@
     "test:unit": "vitest",
     "lint": "eslint .",
     "export": "yarn build && npx cap sync android && yarn assemble",
-    "assemble": "cd android && JAVA_HOME=/opt/android-studio/jbr PATH=/opt/android-studio/jbr/bin:$PATH ./gradlew assembleDebug"
+    "assemble": "cd android && JAVA_HOME=/home/dominic/.jdks/jbr-21.0.11 PATH=/home/dominic/.jdks/jbr-21.0.11/bin:$PATH ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
@@ -25,14 +25,17 @@
     "@capacitor/haptics": "8.0.2",
     "@capacitor/keyboard": "8.0.3",
     "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
     "@capacitor/status-bar": "8.0.2",
     "@capacitor/toast": "^8.0.1",
+    "@capawesome/capacitor-file-picker": "^8.1.1",
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",
     "@openfoodfacts/openfoodfacts-nodejs": "^2.0.0-alpha.30",
     "@primeuix/themes": "^2.0.3",
     "image-blob-reduce": "^5.0.0",
     "ionicons": "^7.0.0",
+    "jszip": "^3.10.2",
     "pinia": "^4.1.0",
     "primevue": "^4.5.5",
     "vue": "^3.3.0",

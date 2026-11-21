@@ -3,6 +3,15 @@
     <ion-header>
       <ion-toolbar>
         <ion-title>Home</ion-title>
+        <ion-buttons slot="end">
+          <ion-button
+            @click="gridView = !gridView"
+            :aria-label="gridView ? 'Switch to list view' : 'Switch to grid view'"
+            :color="gridView ? 'primary' : undefined"
+          >
+            <ion-icon :icon="gridOutline" />
+          </ion-button>
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
     <ion-content :fullscreen="true">
@@ -27,9 +36,54 @@
     </ion-item>
     <ion-item>
       <ion-input @ion-input="executeFilter" label="Filter" v-model="tableFilterTerm" />
-      <ion-button @click="scan">𝄃𝄃𝄂𝄂𝄀𝄁𝄃𝄂𝄂𝄃</ion-button>
+      <ion-button @click="scan">𝄃𝄃𝄄𝄂𝄀𝄁𝄃𝄂𝄂𝄃</ion-button>
     </ion-item>
-    <DataTable :value="filteredReviews">
+
+    <ion-toolbar v-if="gridView" class="grid-sort-toolbar">
+      <ion-segment
+        :value="gridSort"
+        @ionChange="gridSort = $event.detail.value as 'database' | 'rating' | 'kj'; executeFilter()"
+      >
+        <ion-segment-button value="database">
+          <ion-label>Database order</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="rating">
+          <ion-label>Rating</ion-label>
+        </ion-segment-button>
+        <ion-segment-button value="kj">
+          <ion-label>kJ/100g</ion-label>
+        </ion-segment-button>
+      </ion-segment>
+    </ion-toolbar>
+
+    <div v-if="gridView" class="review-grid">
+      <button
+        v-for="review in filteredReviews"
+        :key="review.barcode"
+        class="review-grid-item"
+        type="button"
+        @click="setModalContent(review)"
+      >
+        <img
+          v-if="imgSrc[review.barcode]"
+          :src="imgSrc[review.barcode]"
+          alt=""
+        />
+        <span v-else class="review-grid-no-image">No image</span>
+        <star-rating
+          :rating="review.rating"
+          star-size="20"
+          :read-only="true"
+          :increment="0.5"
+          :show-rating="false"
+        />
+        <span v-if="gridSort === 'kj'" class="review-grid-kj">
+          {{ Number(review.kj100g) || 0 }} kJ/100g
+        </span>
+      </button>
+    </div>
+
+    <DataTable v-else :value="filteredReviews">
       <Column sortable field="productTitle" header="Product" />
       <!-- <Column field="barcode" header="Barcode"></Column> -->
       <Column sortable field="rating" header="Rating" />
@@ -123,7 +177,8 @@ import {
   IonAlert, IonInput,
   IonSpinner, IonItem,
   IonTextarea,
-  IonLabel, IonSelect, IonSelectOption,
+  IonLabel, IonSelect, IonSelectOption, IonButtons, IonIcon,
+  IonSegment, IonSegmentButton,
 } from '@ionic/vue';
 import db from '@/simpleORM';
 import { ref, onMounted, onActivated, useTemplateRef, watch } from 'vue';
@@ -138,6 +193,7 @@ import { Toast } from '@capacitor/toast';
 import { scanBC } from '../utils/barcode';
 import { Browser } from '@capacitor/browser';
 import { useDomain } from '@/utils/store';
+import { gridOutline } from 'ionicons/icons';
 
 const domainStore = useDomain();
 const route = useRoute();
@@ -190,6 +246,8 @@ let reviews: Review[] = [];
 const loading = ref(false);
 const editing = ref(false);
 const tableFilterTerm = ref<string>('');
+const gridView = ref(false);
+const gridSort = ref<'database' | 'rating' | 'kj'>('database');
 const filteredReviews = ref<Review[]>([]);
 const selectedReview = ref<Review>({
   barcode: '',
@@ -201,7 +259,6 @@ const selectedReview = ref<Review>({
 imgWebviewPath: '',
 kj100g: 0,
 });
-
 function setModalContent(review: Review) {
   selectedReview.value = review;
   // @ts-ignore
@@ -268,6 +325,12 @@ function executeFilter() {
     const matchesText = !query || JSON.stringify(r).toLowerCase().includes(query);
     return matchesDomain && matchesText;
   });
+
+  if (gridSort.value === 'rating') {
+    filteredReviews.value.sort((a, b) => b.rating - a.rating);
+  } else if (gridSort.value === 'kj') {
+    filteredReviews.value.sort((a, b) => (Number(b.kj100g) || 0) - (Number(a.kj100g) || 0));
+  }
 }
 
 function scan() {
@@ -279,3 +342,63 @@ function scan() {
 
 
 </script>
+
+<style>
+.review-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+
+.review-grid-item {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ion-card-background, var(--ion-background-color));
+  color: inherit;
+}
+
+.review-grid-item img,
+.review-grid-no-image {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.review-grid-no-image {
+  display: grid;
+  place-items: center;
+  background: var(--ion-color-light);
+}
+
+.grid-sort-toolbar {
+  --ion-padding-start: 0;
+  --ion-padding-end: 0;
+  --ion-padding-top: 0;
+  --ion-padding-bottom: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--ion-color-light);
+}
+
+.grid-sort-toolbar ion-segment {
+  padding: 0;
+}
+
+.grid-sort-toolbar ion-segment-button {
+  --ion-color-checked: var(--ion-color-primary);
+  --ion-color-checked-rgb: var(--ion-color-primary-rgb);
+}
+
+.review-grid-kj {
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+</style>
