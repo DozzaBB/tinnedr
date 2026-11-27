@@ -9,6 +9,10 @@ export default {
         console.log(ret);
         return JSON.parse(ret.value ?? '[]');
     },
+    hasCollection: async function(collection: string) {
+        const ret = await Preferences.get({ key: collection });
+        return ret.value !== null;
+    },
     removeCollection: async function(collection: string) {
         await this.saveCollection(collection, []);
     },

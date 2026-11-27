@@ -9,5 +9,4 @@ export interface Review {
     domain: Domain
 }
 
-export const DomainList = ["fish","hotpot"] as const;
-export type Domain = typeof DomainList[number]
+export type Domain = string;

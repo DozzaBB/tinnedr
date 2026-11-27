@@ -17,6 +17,31 @@
         <p v-if="status" class="status">{{ status }}</p>
       </div>
 
+      <ion-list>
+        <ion-list-header>
+          <ion-label>Domains</ion-label>
+        </ion-list-header>
+        <ion-item v-for="domain in domainStore.domains" :key="domain">
+          <ion-label>{{ domain }}</ion-label>
+          <ion-button slot="end" color="danger" @click="domainStore.removeDomain(domain)">Remove</ion-button>
+        </ion-item>
+      </ion-list>
+      <ion-item>
+        <ion-input v-model="domainInput" label="New domain" @keyup.enter="addDomain()" />
+        <ion-button slot="end" @click="addDomain()" :disabled="!domainInput.trim()">Add</ion-button>
+      </ion-item>
+      <div v-if="suggestedDomains.length" class="domain-suggestions">
+        <ion-label>Found in reviews</ion-label>
+        <ion-button
+          v-for="domain in suggestedDomains"
+          :key="domain"
+          fill="outline"
+          @click="addDomain(domain)"
+        >
+          Add {{ domain }}
+        </ion-button>
+      </div>
+
       <ion-button @click="removeReviews" :disabled="busy">WIPE EVERYTHING</ion-button>
 
       <!-- <pre>
@@ -27,19 +52,37 @@
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonInput, IonItem, IonLabel, IonList, IonListHeader } from '@ionic/vue';
 import db from '@/simpleORM';
 import { removePhotos } from '@/utils/usePhotoGallery';
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { exportBackup, pickAndImportBackup } from '@/utils/backup';
+import { useDomain } from '@/utils/store';
 
 const wholeDB = ref<any>(null);
 const busy = ref(false);
 const status = ref('');
+const domainInput = ref('');
+const domainStore = useDomain();
+const reviewDomains = ref<string[]>([]);
+const suggestedDomains = computed(() => reviewDomains.value.filter(
+  (domain) => !domainStore.domains.some((saved) => saved.toLocaleLowerCase() === domain.toLocaleLowerCase()),
+));
 
 onMounted(async () => {
+  await domainStore.loadDomain();
   wholeDB.value = await db.getCollection('reviews');
+  reviewDomains.value = [...new Set(
+    (Array.isArray(wholeDB.value) ? wholeDB.value : [])
+      .map((review: { domain?: string }) => review.domain?.trim())
+      .filter((domain: string | undefined): domain is string => Boolean(domain)),
+  )];
 });
+
+async function addDomain(value = domainInput.value) {
+  await domainStore.addDomain(value);
+  if (value === domainInput.value) domainInput.value = '';
+}
 
 async function removeReviews() {
   await db.removeCollection('reviews');

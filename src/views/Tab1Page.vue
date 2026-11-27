@@ -27,11 +27,12 @@
     <ion-item>
       <ion-label>Domain</ion-label>
       <ion-select
-        :value="domainStore.domain"
+        :value="showAllDomains ? ALL_DOMAINS : domainStore.domain"
         interface="popover"
-        @ionChange="handleDomainChange($event.detail.value as Domain)"
+        @ionChange="handleDomainChange($event.detail.value)"
       >
-      <ion-select-option v-for="domain in DomainList" :value="domain">{{ domain }}</ion-select-option>
+      <ion-select-option :value="ALL_DOMAINS">All domains</ion-select-option>
+      <ion-select-option v-for="domain in domainStore.domains" :key="domain" :value="domain">{{ domain }}</ion-select-option>
       </ion-select>
     </ion-item>
     <ion-item>
@@ -115,8 +116,7 @@
                 interface="popover"
                 @ionChange="selectedReview.domain = $event.detail.value as Domain"
               >
-                <ion-select-option value="fish">Fish</ion-select-option>
-                <ion-select-option value="hotpot">Hotpot</ion-select-option>
+                <ion-select-option v-for="domain in domainStore.domains" :key="domain" :value="domain">{{ domain }}</ion-select-option>
               </ion-select>
             </ion-item>
             <!-- <div v-else>{{ selectedReview!.reviewText }}</div> -->
@@ -183,7 +183,7 @@ import {
 import db from '@/simpleORM';
 import { ref, onMounted, onActivated, useTemplateRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { Domain, DomainList, Review } from '@/types';
+import { Domain, Review } from '@/types';
 import { loadPicture } from '@/utils/usePhotoGallery';
 // @ts-ignore
 import StarRating from 'vue-star-rating';
@@ -197,8 +197,16 @@ import { gridOutline } from 'ionicons/icons';
 
 const domainStore = useDomain();
 const route = useRoute();
+const ALL_DOMAINS = '__all_domains__';
+const showAllDomains = ref(false);
 
-async function handleDomainChange(nextDomain: Domain) {
+async function handleDomainChange(nextDomain: string) {
+  if (nextDomain === ALL_DOMAINS) {
+    showAllDomains.value = true;
+    executeFilter();
+    return;
+  }
+  showAllDomains.value = false;
   await domainStore.setDomain(nextDomain);
   await getReviews();
 }
@@ -295,7 +303,7 @@ async function getReviews() {
   reviews = result;
   for (const review of reviews) {
     imgSrc.value[review.barcode] = await loadPicture(review);
-    review.domain ??= 'fish';
+    review.domain ??= '';
   }
   executeFilter();
 }
@@ -321,7 +329,7 @@ async function saveEdit() {
 function executeFilter() {
   const query = tableFilterTerm.value.trim().toLowerCase();
   filteredReviews.value = reviews.filter((r) => {
-    const matchesDomain = r.domain === domainStore.domain;
+    const matchesDomain = showAllDomains.value || r.domain === domainStore.domain;
     const matchesText = !query || JSON.stringify(r).toLowerCase().includes(query);
     return matchesDomain && matchesText;
   });
