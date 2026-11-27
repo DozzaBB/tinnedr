@@ -1,5 +1,5 @@
 <template>
-    <ion-item>
+    <ion-item v-if="editable || review.productTitle">
       <ion-input
         label="Product Title"
         :placeholder="productTitlePlaceholder"
@@ -8,7 +8,7 @@
         @ion-input="updateText('productTitle', $event)"
       />
     </ion-item>
-    <ion-item>
+    <ion-item v-if="editable || review.rating">
       <star-rating
         :rating="review.rating"
         :read-only="!editable"
@@ -18,7 +18,7 @@
         @update:rating="updateRating"
       />
     </ion-item>
-    <ion-item>
+    <ion-item v-if="editable || review.kj100g">
       <ion-input
         label="Energy (kJ/100g)"
         type="number"
@@ -27,7 +27,7 @@
         @ion-input="updateEnergy"
       />
     </ion-item>
-    <ion-item>
+    <ion-item v-if="editable || review.reviewText">
       <ion-textarea
         auto-grow
         label="Review"
@@ -45,7 +45,7 @@
         </ion-select-option>
       </ion-select>
     </ion-item>
-    <ion-item class="review-image-item">
+    <ion-item v-if="editable || imageSrc" class="review-image-item">
       <ion-label position="stacked">Image</ion-label>
       <div class="review-image-preview">
         <ion-img v-if="imageSrc" :src="imageSrc" />
