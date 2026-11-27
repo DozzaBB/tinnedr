@@ -99,39 +99,38 @@
         no reviews to find.
       </template>
     </DataTable>
-    <ion-modal ref="details-modal">
+    <ion-modal ref="details-modal" @ionModalDidDismiss="editing = false">
       <ion-header>
         <ion-toolbar>
-              <ion-input label="Product Title" :readonly="!editing" v-model="selectedReview.productTitle"></ion-input>
-            
-            <star-rating v-model:rating="selectedReview.rating" :read-only="!editing" :increment="0.5"></star-rating>
-    
-            <img :src="imgSrc[selectedReview!.barcode]" />
-            
-            <ion-textarea auto-grow :readonly="!editing" label="Review Text" v-model="selectedReview.reviewText"></ion-textarea>
-            <ion-item v-if="editing">
-              <ion-label>Domain</ion-label>
-              <ion-select
-                :value="selectedReview.domain"
-                interface="popover"
-                @ionChange="selectedReview.domain = $event.detail.value as Domain"
-              >
-                <ion-select-option v-for="domain in domainStore.domains" :key="domain" :value="domain">{{ domain }}</ion-select-option>
-              </ion-select>
-            </ion-item>
-            <!-- <div v-else>{{ selectedReview!.reviewText }}</div> -->
-             <ion-input label="Energy (kJ/100g)" type="number" :readonly="!editing" v-model="selectedReview.kj100g"></ion-input>
-              <div>Barcode: {{ selectedReview!.barcode }}
-                <ion-spinner v-if="loading"></ion-spinner>
-                <ion-button v-if="editing" @click="nameFromBarcode">Get Product Info</ion-button><ion-button @click="openBarcode">↗️🔗</ion-button>
-              </div>
-              
-    
-            <IonButton @click="presentDelete" color="danger" >Delete</IonButton>
-            <ion-button @click="editing = !editing">{{ editing ? "Cancel" : '' }} Edit</ion-button>
-            <ion-button v-if="editing" @click="saveEdit">Save</ion-button>
+          <ion-title>Review Details</ion-title>
         </ion-toolbar>
       </ion-header>
+      <ion-content class="ion-padding">
+        <ion-list>
+          <ReviewFields
+            v-model:review="selectedReview"
+            :editable="editing"
+            :image-src="imgSrc[selectedReview.barcode] ?? ''"
+            :domains="domainStore.domains"
+            image-action-label="Choose Photo from Gallery"
+            @image-action="choosePhotoFromGallery"
+          />
+          <ion-item>
+            <ion-label>
+              Barcode
+              <p>{{ selectedReview!.barcode }}</p>
+            </ion-label>
+            <ion-spinner v-if="loading"></ion-spinner>
+            <ion-button v-if="editing" slot="end" @click="nameFromBarcode">Get Product Info</ion-button>
+            <ion-button slot="end" @click="openBarcode">↗️🔗</ion-button>
+          </ion-item>
+        </ion-list>
+        <div class="review-modal-actions">
+          <ion-button @click="presentDelete" color="danger">Delete</ion-button>
+          <ion-button @click="editing = !editing">{{ editing ? 'Cancel' : 'Edit' }}</ion-button>
+          <ion-button v-if="editing" @click="saveEdit">Save</ion-button>
+        </div>
+      </ion-content>
     </ion-modal>
     <ion-alert
       ref="delete-alert"
@@ -176,15 +175,16 @@ import {
   RefresherCustomEvent, IonModal, 
   IonAlert, IonInput,
   IonSpinner, IonItem,
-  IonTextarea,
-  IonLabel, IonSelect, IonSelectOption, IonButtons, IonIcon,
+  IonLabel, IonSelect, IonSelectOption, IonButtons, IonIcon, IonList,
   IonSegment, IonSegmentButton,
 } from '@ionic/vue';
 import db from '@/simpleORM';
 import { ref, onMounted, onActivated, useTemplateRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { Domain, Review } from '@/types';
-import { loadPicture } from '@/utils/usePhotoGallery';
+import { Review } from '@/types';
+import { loadPicture, removePhoto, savePicture } from '@/utils/usePhotoGallery';
+import { Camera, MediaResult, MediaTypeSelection } from '@capacitor/camera';
+import ReviewFields from '@/components/ReviewFields.vue';
 // @ts-ignore
 import StarRating from 'vue-star-rating';
 import { Column, DataTable } from 'primevue';
@@ -253,6 +253,7 @@ const imgSrc = ref<Record<string, string>>({});
 let reviews: Review[] = [];
 const loading = ref(false);
 const editing = ref(false);
+const replacementPhoto = ref<MediaResult>();
 const tableFilterTerm = ref<string>('');
 const gridView = ref(false);
 const gridSort = ref<'database' | 'rating' | 'kj'>('database');
@@ -268,6 +269,7 @@ imgWebviewPath: '',
 kj100g: 0,
 });
 function setModalContent(review: Review) {
+  replacementPhoto.value = undefined;
   selectedReview.value = review;
   // @ts-ignore
   detailsModal.value.$el.present();
@@ -320,10 +322,41 @@ async function deleteSelectedReview() {
 }
 
 async function saveEdit() {
+  const previousImagePath = selectedReview.value.imgFilepath;
+  if (replacementPhoto.value) {
+    const savedPhoto = await savePicture(
+      replacementPhoto.value,
+      `${selectedReview.value.barcode}-${Date.now()}.jpeg`,
+    );
+    selectedReview.value.imgFilepath = savedPhoto.filepath;
+    selectedReview.value.imgWebviewPath = savedPhoto.webviewPath ?? '';
+  }
   await db.updateById('reviews', selectedReview.value.barcode, selectedReview.value);
+  if (replacementPhoto.value && previousImagePath && previousImagePath !== selectedReview.value.imgFilepath) {
+    await removePhoto(previousImagePath).catch((error) => console.error('Failed to remove replaced photo', error));
+  }
+  replacementPhoto.value = undefined;
   // @ts-expect-error
   detailsModal.value.$el.dismiss();
 
+}
+
+async function choosePhotoFromGallery() {
+  try {
+    const result = await Camera.chooseFromGallery({
+      mediaType: MediaTypeSelection.Photo,
+      allowMultipleSelection: false,
+      quality: 50,
+    });
+    const photo = result.results[0];
+    if (!photo) return;
+
+    replacementPhoto.value = photo;
+    imgSrc.value[selectedReview.value.barcode] = photo.webPath ?? '';
+  } catch (error) {
+    console.error('Failed to select a photo from the gallery', error);
+    await Toast.show({ text: 'Failed to select photo' });
+  }
 }
 
 function executeFilter() {
@@ -408,5 +441,24 @@ function scan() {
   font-size: 12px;
   line-height: 1.2;
   font-weight: 600;
+}
+
+.review-image-item {
+  --inner-padding-top: 8px;
+  --inner-padding-bottom: 8px;
+}
+
+.review-image-preview {
+  width: 100%;
+  max-width: 300px;
+  margin: 8px auto;
+}
+
+.review-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
 }
 </style>

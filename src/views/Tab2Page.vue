@@ -31,38 +31,18 @@
         <ion-button @click="scan">Open Scanner</ion-button>
       </span>
     </ion-item>
-    <ion-item>
-      <ion-input type="text" label="Product Title" placeholder="Tinned Fish" v-model="reviewProductTitle"></ion-input>
-    </ion-item>
-    <ion-item>
-      <!-- <ion-range :max='5' :min='0' :step="0.5" v-model="reviewRating" label-placement="start" label="Rating"></ion-range> -->
-      <!-- {{ reviewRating }} <input type="range" max="5" min="0" step="0.5" v-model="reviewRating"> -->
-        <star-rating :increment="0.5" :max-rating="5" v-model:rating="reviewRating" :show-rating="false"></star-rating>
-    </ion-item>
-    <ion-item>
-      <ion-input label="Energy (kJ/100g)" type="number" v-model="kj"></ion-input>
-    </ion-item>
-    <ion-item>
-      <ion-textarea auto-grow label="Review" placeholder="Give me some thoughts..." v-model="reviewText"></ion-textarea>
-    </ion-item>
-  
-    <ion-item><ion-label>Image</ion-label>
-      <div style="max-width: 300px">
-        <ion-img style="width: 100%":src="previewImageSrc"></ion-img>
-      </div>
-      </ion-item>
-        <ion-button @click="takePicture">Take Photo</ion-button>
-        <ion-button @click="nameFromBarcode()">Proc Name API</ion-button>
+        <ReviewFields
+          v-model:review="reviewDraft"
+          :editable="true"
+          :image-src="previewImageSrc"
+          image-action-label="Take Photo"
+          product-title-placeholder="Tinned Fish"
+          @image-action="takePicture"
+        />
+        <ion-item lines="none">
+          <ion-button @click="nameFromBarcode">Proc Name API</ion-button>
+        </ion-item>
   </ion-list>
-  <!-- <pre>
-Debug
-Barcode: {{ reviewBarcode }}
-Product Title: {{ reviewProductTitle }}
-Rating: {{ reviewRating }}
-Review: {{ reviewText }}
-previewImageSrc: {{ previewImageSrc }}
-previewImage: {{ previewImage }}
-  </pre> -->
     </ion-content>
   </ion-page>
 </template>
@@ -70,29 +50,34 @@ previewImage: {{ previewImage }}
 <script setup lang="ts">
 import {
   IonSpinner, IonPage,IonHeader, IonToolbar, IonTitle,
-  IonContent, IonInput, IonList, IonItem, IonLabel,
-  IonButton, IonImg, IonRow, IonCol, IonGrid, IonTextarea
+  IonContent, IonInput, IonList, IonItem,
+  IonButton, IonRow, IonCol, IonGrid
 } from '@ionic/vue';
 import { ref } from 'vue';
 import { Toast } from '@capacitor/toast';
-import { Review } from '@/types';
+import type { Review } from '@/types';
 import { Camera, MediaResult } from '@capacitor/camera';
 import db from '@/simpleORM';
 import { savePicture } from '@/utils/usePhotoGallery';
 import router from '@/router';
-// @ts-ignore
-import StarRating from 'vue-star-rating';
+import ReviewFields from '@/components/ReviewFields.vue';
 import { useDomain } from '@/utils/store';
 
-const reviewRating = ref<number>(0);
-const reviewProductTitle = ref<string>('');
-const reviewText = ref<string>('');
 const reviewBarcode = ref<string>('');
 const previewImageSrc = ref<string>('');
 const previewImage = ref<MediaResult>();
 const loading = ref(false);
-const kj = ref<number>(0);
 const domainStore = useDomain();
+const reviewDraft = ref<Review>({
+  barcode: '',
+  productTitle: '',
+  reviewText: '',
+  rating: 0,
+  imgFilepath: '',
+  imgWebviewPath: '',
+  kj100g: 0,
+  domain: domainStore.domain,
+});
 
 import { OpenFoodFacts } from "@openfoodfacts/openfoodfacts-nodejs";
 const foodClient = new OpenFoodFacts(fetch);
@@ -119,7 +104,7 @@ const nameFromBarcode = async () => {
   foodClient.getProductV3(reviewBarcode.value).then((r: any) => {
     console.log(r);
     if (r.data?.product?.product_name) {
-      reviewProductTitle.value = r.data?.product?.product_name + " - " + r.data?.product?.brands;
+      reviewDraft.value.productTitle = r.data?.product?.product_name + " - " + r.data?.product?.brands;
       previewImageSrc.value = r.data?.product?.image_url
     } else {
       Toast.show({
@@ -167,14 +152,11 @@ async function submitReview() {
 }
 
   const newReview: Review = {
+    ...reviewDraft.value,
     barcode: reviewBarcode.value,
-    productTitle: reviewProductTitle.value ?? '',
-    reviewText: reviewText.value ?? '',
-    rating: reviewRating.value ?? 0,
     imgFilepath: savedPic?.filepath,
     imgWebviewPath: savedPic?.webviewPath,
     domain: domainStore.domain,
-    kj100g: kj.value ?? 0
   }
 
   reviews.push(newReview);
