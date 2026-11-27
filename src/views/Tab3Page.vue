@@ -43,10 +43,6 @@
       </div>
 
       <ion-button @click="removeReviews" :disabled="busy">WIPE EVERYTHING</ion-button>
-
-      <!-- <pre>
-        {{ wholeDB }}
-      </pre> -->
     </ion-content>
   </ion-page>
 </template>
@@ -59,7 +55,6 @@ import { computed, ref, onMounted } from 'vue';
 import { exportBackup, pickAndImportBackup } from '@/utils/backup';
 import { useDomain } from '@/utils/store';
 
-const wholeDB = ref<any>(null);
 const busy = ref(false);
 const status = ref('');
 const domainInput = ref('');
@@ -71,9 +66,9 @@ const suggestedDomains = computed(() => reviewDomains.value.filter(
 
 onMounted(async () => {
   await domainStore.loadDomain();
-  wholeDB.value = await db.getCollection('reviews');
+  const reviews = await db.getCollection('reviews');
   reviewDomains.value = [...new Set(
-    (Array.isArray(wholeDB.value) ? wholeDB.value : [])
+    (Array.isArray(reviews) ? reviews : [])
       .map((review: { domain?: string }) => review.domain?.trim())
       .filter((domain: string | undefined): domain is string => Boolean(domain)),
   )];

@@ -208,7 +208,6 @@ async function handleDomainChange(nextDomain: string) {
   }
   showAllDomains.value = false;
   await domainStore.setDomain(nextDomain);
-  await getReviews();
 }
 
 watch(
