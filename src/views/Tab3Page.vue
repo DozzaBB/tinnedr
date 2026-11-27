@@ -11,6 +11,7 @@
           <ion-title size="large">Tab 3</ion-title>
         </ion-toolbar>
       </ion-header>
+      <ion-note class="build-date">Build date: {{ buildDate }}</ion-note>
       <div class="backup-actions">
         <ion-button @click="createBackup" :disabled="busy">Export backup</ion-button>
         <ion-button @click="restoreBackup" :disabled="busy">Import backup</ion-button>
@@ -48,16 +49,18 @@
 </template>
 
 <script setup lang="ts">
-import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonInput, IonItem, IonLabel, IonList, IonListHeader } from '@ionic/vue';
+import { IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonInput, IonItem, IonLabel, IonList, IonListHeader, IonNote } from '@ionic/vue';
 import db from '@/simpleORM';
 import { removePhotos } from '@/utils/usePhotoGallery';
 import { computed, ref, onMounted } from 'vue';
 import { exportBackup, pickAndImportBackup } from '@/utils/backup';
 import { useDomain } from '@/utils/store';
+import { extractReviewDomains } from '@/utils/reviewDomains';
 
 const busy = ref(false);
 const status = ref('');
 const domainInput = ref('');
+const buildDate = new Date(__BUILD_DATE__).toLocaleString();
 const domainStore = useDomain();
 const reviewDomains = ref<string[]>([]);
 const suggestedDomains = computed(() => reviewDomains.value.filter(
@@ -67,11 +70,7 @@ const suggestedDomains = computed(() => reviewDomains.value.filter(
 onMounted(async () => {
   await domainStore.loadDomain();
   const reviews = await db.getCollection('reviews');
-  reviewDomains.value = [...new Set(
-    (Array.isArray(reviews) ? reviews : [])
-      .map((review: { domain?: string }) => review.domain?.trim())
-      .filter((domain: string | undefined): domain is string => Boolean(domain)),
-  )];
+  reviewDomains.value = extractReviewDomains(Array.isArray(reviews) ? reviews : []);
 });
 
 async function addDomain(value = domainInput.value) {

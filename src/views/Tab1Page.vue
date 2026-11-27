@@ -151,12 +151,12 @@ import { loadPicture, removePhoto, savePicture } from '@/utils/usePhotoGallery';
 import { Camera, MediaResult, MediaTypeSelection } from '@capacitor/camera';
 import ReviewFields from '@/components/ReviewFields.vue';
 import ReviewResults from '@/components/ReviewResults.vue';
-import { OpenFoodFacts } from "@openfoodfacts/openfoodfacts-nodejs";
 import { Toast } from '@capacitor/toast';
 import { scanBC } from '../utils/barcode';
 import { Browser } from '@capacitor/browser';
 import { useDomain } from '@/utils/store';
 import { gridOutline } from 'ionicons/icons';
+import { lookupProduct } from '@/utils/productLookup';
 
 const domainStore = useDomain();
 const route = useRoute();
@@ -206,8 +206,6 @@ onActivated(() => {
 });
 
 
-const foodClient = new OpenFoodFacts(fetch);
-
 const detailsModal = useTemplateRef('details-modal')
 const deleteAlert = useTemplateRef('delete-alert');
 
@@ -239,19 +237,17 @@ function setModalContent(review: Review) {
 
 const nameFromBarcode = async () => {
   loading.value = true;
-  foodClient.getProductV3(selectedReview.value.barcode).then((r: any) => {
-    console.log(r);
-    if (r.data?.product?.product_name) {
-      selectedReview.value.productTitle = r.data?.product?.product_name + " - " + r.data?.product?.brands;
-      imgSrc.value[selectedReview.value.barcode] = r.data?.product?.image_url;
+  try {
+    const product = await lookupProduct(selectedReview.value.barcode);
+    if (product) {
+      selectedReview.value.productTitle = product.productTitle;
+      if (product.imageUrl) imgSrc.value[selectedReview.value.barcode] = product.imageUrl;
     } else {
-      Toast.show({
-      text: 'Failed to get product information.'
-    });
+      Toast.show({ text: 'Failed to get product information.' });
     }
-  }).finally(() => {
+  } finally {
     loading.value = false;
-  });
+  }
 };
 
 function handleRefresh(event: RefresherCustomEvent) {

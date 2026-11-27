@@ -62,6 +62,7 @@ import { savePicture } from '@/utils/usePhotoGallery';
 import router from '@/router';
 import ReviewFields from '@/components/ReviewFields.vue';
 import { useDomain } from '@/utils/store';
+import { lookupProduct } from '@/utils/productLookup';
 
 const reviewBarcode = ref<string>('');
 const previewImageSrc = ref<string>('');
@@ -78,9 +79,6 @@ const reviewDraft = ref<Review>({
   kj100g: 0,
   domain: domainStore.domain,
 });
-
-import { OpenFoodFacts } from "@openfoodfacts/openfoodfacts-nodejs";
-const foodClient = new OpenFoodFacts(fetch);
 
 async function takePicture() {
   const image = await Camera.takePhoto({
@@ -101,19 +99,19 @@ async function takePicture() {
 
 const nameFromBarcode = async () => {
   loading.value = true;
-  foodClient.getProductV3(reviewBarcode.value).then((r: any) => {
-    console.log(r);
-    if (r.data?.product?.product_name) {
-      reviewDraft.value.productTitle = r.data?.product?.product_name + " - " + r.data?.product?.brands;
-      previewImageSrc.value = r.data?.product?.image_url
+  try {
+    const product = await lookupProduct(reviewBarcode.value);
+    if (product) {
+      reviewDraft.value.productTitle = product.productTitle;
+      previewImageSrc.value = product.imageUrl ?? '';
     } else {
       Toast.show({
         text: 'Product not found, no data in response.'
       });
     }
-  }).finally(() => {
+  } finally {
     loading.value = false;
-  });
+  }
 };
 
 async function submitReview() {

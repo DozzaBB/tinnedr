@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import type { Domain } from '@/types';
 import db from '@/simpleORM';
+import { extractReviewDomains } from '@/utils/reviewDomains';
 
 export const useDomain = defineStore('domain', {
   state: (): { domain: Domain; domains: Domain[] } => ({
@@ -16,11 +17,7 @@ export const useDomain = defineStore('domain', {
           this.domains = savedDomains;
         } else {
           const reviews = await db.getCollection('reviews');
-          this.domains = [...new Set(
-            (Array.isArray(reviews) ? reviews : [])
-              .map((review: { domain?: string }) => review.domain?.trim())
-              .filter((domain: string | undefined): domain is string => Boolean(domain)),
-          )];
+          this.domains = extractReviewDomains(Array.isArray(reviews) ? reviews : []);
           await db.saveCollection('domains', this.domains);
         }
 
